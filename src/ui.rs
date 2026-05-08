@@ -6,8 +6,8 @@ use crate::app::{App, InputMode, PopupState};
 use crate::highlight;
 
 /// Phosphor green default style
-const PHOSPHOR_GREEN: Color = Color::Rgb(0, 255, 136);
-const DIM_GREEN: Color = Color::Rgb(0, 128, 68);
+const PHOSPHOR_GREEN: Color = Color::Rgb(0, 255, 200);
+const DIM_GREEN: Color = Color::Rgb(0, 128, 100);
 const BG_COLOR: Color = Color::Rgb(8, 12, 8);
 
 pub fn draw(frame: &mut Frame, app: &mut App) {
