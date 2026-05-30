@@ -19,7 +19,13 @@ pub fn read_stdin(tx: mpsc::Sender<SourceMsg>) {
         for line in reader.lines() {
             match line {
                 Ok(content) => {
-                    if tx.send(SourceMsg::Line { content, source_idx: 0 }).is_err() {
+                    if tx
+                        .send(SourceMsg::Line {
+                            content,
+                            source_idx: 0,
+                        })
+                        .is_err()
+                    {
                         break;
                     }
                 }
@@ -72,8 +78,17 @@ pub fn read_file(path: PathBuf, source_idx: usize, follow: bool, tx: mpsc::Sende
                 }
                 Ok(_) => {
                     // Strip trailing newline
-                    let content = line_buf.trim_end_matches('\n').trim_end_matches('\r').to_string();
-                    if tx.send(SourceMsg::Line { content, source_idx }).is_err() {
+                    let content = line_buf
+                        .trim_end_matches('\n')
+                        .trim_end_matches('\r')
+                        .to_string();
+                    if tx
+                        .send(SourceMsg::Line {
+                            content,
+                            source_idx,
+                        })
+                        .is_err()
+                    {
                         break;
                     }
                 }
@@ -104,7 +119,13 @@ pub fn read_reader<R: Read + Send + 'static>(
         for line in buf_reader.lines() {
             match line {
                 Ok(content) => {
-                    if tx.send(SourceMsg::Line { content, source_idx }).is_err() {
+                    if tx
+                        .send(SourceMsg::Line {
+                            content,
+                            source_idx,
+                        })
+                        .is_err()
+                    {
                         break;
                     }
                 }

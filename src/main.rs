@@ -24,7 +24,10 @@ use app::App;
 use source::SourceMsg;
 
 #[derive(Parser, Debug)]
-#[command(name = "log-lens", about = "Streaming log viewer TUI with filtering and highlighting")]
+#[command(
+    name = "log-lens",
+    about = "Streaming log viewer TUI with filtering and highlighting"
+)]
 struct Args {
     /// Log files to view (reads stdin if none given)
     #[arg()]
@@ -55,11 +58,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let source_names: Vec<String> = if is_stdin {
         vec!["stdin".to_string()]
     } else {
-        args.files.iter().map(|p| {
-            p.file_name()
-                .map(|n| n.to_string_lossy().to_string())
-                .unwrap_or_else(|| p.display().to_string())
-        }).collect()
+        args.files
+            .iter()
+            .map(|p| {
+                p.file_name()
+                    .map(|n| n.to_string_lossy().to_string())
+                    .unwrap_or_else(|| p.display().to_string())
+            })
+            .collect()
     };
 
     let mut app = App::new(args.buffer_size, source_names, follow);
@@ -154,7 +160,10 @@ fn run_loop<W: Write>(
         let mut got_new = false;
         loop {
             match rx.try_recv() {
-                Ok(SourceMsg::Line { content, source_idx }) => {
+                Ok(SourceMsg::Line {
+                    content,
+                    source_idx,
+                }) => {
                     app.add_line(content, source_idx);
                     got_new = true;
                 }
@@ -174,7 +183,13 @@ fn run_loop<W: Write>(
                 app.refilter();
             } else if got_new && app.search.regex.is_some() {
                 let fi_len = app.filtered_indices.len();
-                let start_fi = app.search.match_indices.last().copied().map(|l| l + 1).unwrap_or(0);
+                let start_fi = app
+                    .search
+                    .match_indices
+                    .last()
+                    .copied()
+                    .map(|l| l + 1)
+                    .unwrap_or(0);
                 if let Some(ref regex) = app.search.regex {
                     for fi in start_fi..fi_len {
                         if let Some(&li) = app.filtered_indices.get(fi) {

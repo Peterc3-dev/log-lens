@@ -1,6 +1,6 @@
 use ratatui::prelude::*;
-use ratatui::widgets::{Block, Borders, Clear, Paragraph, Wrap};
 use ratatui::text::{Line, Span};
+use ratatui::widgets::{Block, Borders, Clear, Paragraph, Wrap};
 
 use crate::app::{App, InputMode, PopupState};
 use crate::highlight;
@@ -14,7 +14,11 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
     let size = frame.area();
 
     // Layout: [log area] [status bar] [input bar (if active)]
-    let input_height = if app.input_mode != InputMode::Normal { 1 } else { 0 };
+    let input_height = if app.input_mode != InputMode::Normal {
+        1
+    } else {
+        0
+    };
     let constraints = if input_height > 0 {
         vec![
             Constraint::Min(3),
@@ -22,10 +26,7 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
             Constraint::Length(1),
         ]
     } else {
-        vec![
-            Constraint::Min(3),
-            Constraint::Length(1),
-        ]
+        vec![Constraint::Min(3), Constraint::Length(1)]
     };
 
     let chunks = Layout::default()
@@ -61,7 +62,12 @@ fn draw_log_view(frame: &mut Frame, app: &App, area: Rect) {
     let block = Block::default()
         .borders(Borders::ALL)
         .border_style(Style::default().fg(DIM_GREEN))
-        .title(Span::styled(" log-lens ", Style::default().fg(PHOSPHOR_GREEN).add_modifier(Modifier::BOLD)));
+        .title(Span::styled(
+            " log-lens ",
+            Style::default()
+                .fg(PHOSPHOR_GREEN)
+                .add_modifier(Modifier::BOLD),
+        ));
 
     let inner = block.inner(area);
     frame.render_widget(block, area);
@@ -72,8 +78,7 @@ fn draw_log_view(frame: &mut Frame, app: &App, area: Rect) {
         } else {
             "No lines match current filters"
         };
-        let p = Paragraph::new(msg)
-            .style(Style::default().fg(DIM_GREEN));
+        let p = Paragraph::new(msg).style(Style::default().fg(DIM_GREEN));
         frame.render_widget(p, inner);
         return;
     }
@@ -96,7 +101,10 @@ fn draw_log_view(frame: &mut Frame, app: &App, area: Rect) {
         if let Some(log_line) = app.lines.get(li) {
             let content = &log_line.content;
             let is_bookmarked = app.bookmarks.contains(&li);
-            let is_search_match = app.search.regex.as_ref()
+            let is_search_match = app
+                .search
+                .regex
+                .as_ref()
                 .map(|r| r.is_match(content))
                 .unwrap_or(false);
 
@@ -115,7 +123,9 @@ fn draw_log_view(frame: &mut Frame, app: &App, area: Rect) {
 
             // Source tag for multi-file mode
             if multi_source {
-                let src_name = app.source_names.get(log_line.source_idx)
+                let src_name = app
+                    .source_names
+                    .get(log_line.source_idx)
                     .map(|s| s.as_str())
                     .unwrap_or("?");
                 // Truncate source name
@@ -130,7 +140,8 @@ fn draw_log_view(frame: &mut Frame, app: &App, area: Rect) {
 
             // Determine base style from log level
             let level = highlight::detect_level(content);
-            let base_style = level.map(|l| l.style())
+            let base_style = level
+                .map(|l| l.style())
                 .unwrap_or(Style::default().fg(PHOSPHOR_GREEN));
 
             // Check for JSON
@@ -139,7 +150,13 @@ fn draw_log_view(frame: &mut Frame, app: &App, area: Rect) {
                 render_json_spans(&mut spans, content, base_style, &app.search, width);
             } else {
                 // Render with timestamp + search highlighting
-                render_line_spans(&mut spans, content, base_style, &app.search, is_search_match);
+                render_line_spans(
+                    &mut spans,
+                    content,
+                    base_style,
+                    &app.search,
+                    is_search_match,
+                );
             }
 
             lines_out.push(Line::from(spans));
@@ -151,8 +168,7 @@ fn draw_log_view(frame: &mut Frame, app: &App, area: Rect) {
             .style(Style::default().bg(BG_COLOR))
             .wrap(Wrap { trim: false })
     } else {
-        Paragraph::new(lines_out)
-            .style(Style::default().bg(BG_COLOR))
+        Paragraph::new(lines_out).style(Style::default().bg(BG_COLOR))
     };
 
     frame.render_widget(paragraph, inner);
@@ -224,7 +240,9 @@ fn render_json_spans<'a>(
     search: &crate::app::SearchState,
     _width: usize,
 ) {
-    let key_style = Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD);
+    let key_style = Style::default()
+        .fg(Color::Cyan)
+        .add_modifier(Modifier::BOLD);
     let string_style = Style::default().fg(Color::Green);
     let number_style = Style::default().fg(Color::Yellow);
     let _null_style = Style::default().fg(Color::DarkGray);
@@ -286,11 +304,21 @@ fn draw_status_bar(frame: &mut Frame, app: &App, area: Rect) {
     let mut parts: Vec<Span> = Vec::new();
 
     // Mode indicator
-    let mode_str = if app.auto_scroll { " FOLLOW " } else { " SCROLL " };
-    let mode_style = if app.auto_scroll {
-        Style::default().fg(Color::Black).bg(Color::Green).add_modifier(Modifier::BOLD)
+    let mode_str = if app.auto_scroll {
+        " FOLLOW "
     } else {
-        Style::default().fg(Color::Black).bg(PHOSPHOR_GREEN).add_modifier(Modifier::BOLD)
+        " SCROLL "
+    };
+    let mode_style = if app.auto_scroll {
+        Style::default()
+            .fg(Color::Black)
+            .bg(Color::Green)
+            .add_modifier(Modifier::BOLD)
+    } else {
+        Style::default()
+            .fg(Color::Black)
+            .bg(PHOSPHOR_GREEN)
+            .add_modifier(Modifier::BOLD)
     };
     parts.push(Span::styled(mode_str, mode_style));
     parts.push(Span::styled(" ", Style::default()));
@@ -301,17 +329,16 @@ fn draw_status_bar(frame: &mut Frame, app: &App, area: Rect) {
     }
 
     // Line counts
-    let count_str = format!(
-        "Lines: {}/{} ",
-        app.filtered_count(),
-        app.total_count(),
-    );
+    let count_str = format!("Lines: {}/{} ", app.filtered_count(), app.total_count(),);
     parts.push(Span::styled(count_str, Style::default().fg(PHOSPHOR_GREEN)));
 
     // Filter indicators
     if !app.filters.is_empty() {
         parts.push(Span::styled("│ ", Style::default().fg(DIM_GREEN)));
-        parts.push(Span::styled("Filters: ", Style::default().fg(Color::Yellow)));
+        parts.push(Span::styled(
+            "Filters: ",
+            Style::default().fg(Color::Yellow),
+        ));
         for (i, f) in app.filters.iter().enumerate() {
             if i > 0 {
                 parts.push(Span::styled(", ", Style::default().fg(DIM_GREEN)));
@@ -319,7 +346,9 @@ fn draw_status_bar(frame: &mut Frame, app: &App, area: Rect) {
             let prefix = if f.inverse { "!" } else { "/" };
             parts.push(Span::styled(
                 format!("{}{}", prefix, f.pattern),
-                Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD),
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD),
             ));
         }
         parts.push(Span::raw(" "));
@@ -358,16 +387,12 @@ fn draw_status_bar(frame: &mut Frame, app: &App, area: Rect) {
     let help = "q:quit /:filter !:inv f:follow w:wrap ^F:search b:mark";
     if remaining > help.len() + 2 {
         let padding = remaining - help.len();
-        parts.push(Span::styled(
-            " ".repeat(padding),
-            Style::default(),
-        ));
+        parts.push(Span::styled(" ".repeat(padding), Style::default()));
         parts.push(Span::styled(help, Style::default().fg(DIM_GREEN)));
     }
 
     let status_line = Line::from(parts);
-    let p = Paragraph::new(status_line)
-        .style(Style::default().bg(Color::Rgb(20, 30, 20)));
+    let p = Paragraph::new(status_line).style(Style::default().bg(Color::Rgb(20, 30, 20)));
     frame.render_widget(p, area);
 }
 
@@ -380,18 +405,22 @@ fn draw_input_bar(frame: &mut Frame, app: &App, area: Rect) {
     };
 
     let input_line = Line::from(vec![
-        Span::styled(prompt, Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
+        Span::styled(
+            prompt,
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD),
+        ),
         Span::styled(&app.input_buffer, Style::default().fg(PHOSPHOR_GREEN)),
         Span::styled("█", Style::default().fg(PHOSPHOR_GREEN)), // cursor
     ]);
 
-    let p = Paragraph::new(input_line)
-        .style(Style::default().bg(BG_COLOR));
+    let p = Paragraph::new(input_line).style(Style::default().bg(BG_COLOR));
     frame.render_widget(p, area);
 }
 
 fn draw_bookmark_popup(frame: &mut Frame, app: &App, area: Rect) {
-    let popup_width = (area.width as usize).min(60).max(30) as u16;
+    let popup_width = (area.width as usize).clamp(30, 60) as u16;
     let popup_height = (app.bookmarks.len() as u16 + 4).min(area.height - 4);
 
     let x = (area.width - popup_width) / 2;
@@ -405,7 +434,9 @@ fn draw_bookmark_popup(frame: &mut Frame, app: &App, area: Rect) {
         .border_style(Style::default().fg(Color::Yellow))
         .title(Span::styled(
             " Bookmarks (Enter:jump d:delete Esc:close) ",
-            Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD),
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD),
         ));
 
     let inner = block.inner(popup_area);
@@ -414,16 +445,23 @@ fn draw_bookmark_popup(frame: &mut Frame, app: &App, area: Rect) {
     let mut lines: Vec<Line> = Vec::new();
     for (i, &line_idx) in app.bookmarks.iter().enumerate() {
         let selected = i == app.bookmark_scroll;
-        let content = app.lines.get(line_idx)
+        let content = app
+            .lines
+            .get(line_idx)
             .map(|l| l.content.as_str())
             .unwrap_or("<deleted>");
 
         let prefix = if selected { "▸ " } else { "  " };
-        let truncated: String = content.chars().take((inner.width as usize).saturating_sub(10)).collect();
+        let truncated: String = content
+            .chars()
+            .take((inner.width as usize).saturating_sub(10))
+            .collect();
         let line_str = format!("{}L{}: {}", prefix, line_idx + 1, truncated);
 
         let style = if selected {
-            Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD)
         } else {
             Style::default().fg(PHOSPHOR_GREEN)
         };
@@ -431,7 +469,6 @@ fn draw_bookmark_popup(frame: &mut Frame, app: &App, area: Rect) {
         lines.push(Line::styled(line_str, style));
     }
 
-    let p = Paragraph::new(lines)
-        .style(Style::default().bg(BG_COLOR));
+    let p = Paragraph::new(lines).style(Style::default().bg(BG_COLOR));
     frame.render_widget(p, inner);
 }
