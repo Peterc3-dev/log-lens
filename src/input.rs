@@ -84,11 +84,9 @@ fn handle_normal_key(app: &mut App, key: KeyEvent) {
 
         // Bookmark
         KeyCode::Char('b') => app.toggle_bookmark(),
-        KeyCode::Char('B') => {
-            if !app.bookmarks.is_empty() {
-                app.popup = PopupState::BookmarkList;
-                app.bookmark_scroll = 0;
-            }
+        KeyCode::Char('B') if !app.bookmarks.is_empty() => {
+            app.popup = PopupState::BookmarkList;
+            app.bookmark_scroll = 0;
         }
 
         // Copy current line to clipboard
@@ -156,10 +154,8 @@ fn handle_bookmark_popup_key(app: &mut App, key: KeyEvent) {
         KeyCode::Up | KeyCode::Char('k') => {
             app.bookmark_scroll = app.bookmark_scroll.saturating_sub(1);
         }
-        KeyCode::Down | KeyCode::Char('j') => {
-            if app.bookmark_scroll + 1 < app.bookmarks.len() {
-                app.bookmark_scroll += 1;
-            }
+        KeyCode::Down | KeyCode::Char('j') if app.bookmark_scroll + 1 < app.bookmarks.len() => {
+            app.bookmark_scroll += 1;
         }
         KeyCode::Enter => {
             // Jump to selected bookmark
@@ -172,16 +168,14 @@ fn handle_bookmark_popup_key(app: &mut App, key: KeyEvent) {
             }
             app.popup = PopupState::None;
         }
-        KeyCode::Char('d') => {
+        KeyCode::Char('d') if app.bookmark_scroll < app.bookmarks.len() => {
             // Delete selected bookmark
-            if app.bookmark_scroll < app.bookmarks.len() {
-                app.bookmarks.remove(app.bookmark_scroll);
-                if app.bookmark_scroll > 0 && app.bookmark_scroll >= app.bookmarks.len() {
-                    app.bookmark_scroll = app.bookmarks.len().saturating_sub(1);
-                }
-                if app.bookmarks.is_empty() {
-                    app.popup = PopupState::None;
-                }
+            app.bookmarks.remove(app.bookmark_scroll);
+            if app.bookmark_scroll > 0 && app.bookmark_scroll >= app.bookmarks.len() {
+                app.bookmark_scroll = app.bookmarks.len().saturating_sub(1);
+            }
+            if app.bookmarks.is_empty() {
+                app.popup = PopupState::None;
             }
         }
         _ => {}
@@ -202,14 +196,12 @@ fn copy_to_clipboard(text: &str) -> Result<(), std::io::Error> {
 
     let mut child = match result {
         Ok(child) => child,
-        Err(_) => {
-            Command::new("xclip")
-                .args(["-selection", "clipboard"])
-                .stdin(Stdio::piped())
-                .stdout(Stdio::null())
-                .stderr(Stdio::null())
-                .spawn()?
-        }
+        Err(_) => Command::new("xclip")
+            .args(["-selection", "clipboard"])
+            .stdin(Stdio::piped())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()?,
     };
 
     if let Some(ref mut stdin) = child.stdin {

@@ -1,5 +1,5 @@
-use std::collections::VecDeque;
 use regex::Regex;
+use std::collections::VecDeque;
 
 /// Represents the source of a log line (which file it came from, or stdin)
 #[derive(Clone, Debug)]
@@ -46,9 +46,9 @@ impl SearchState {
 #[derive(PartialEq, Clone, Debug)]
 pub enum InputMode {
     Normal,
-    FilterInput,       // typing a regex filter
+    FilterInput,        // typing a regex filter
     InverseFilterInput, // typing an inverse filter
-    SearchInput,       // typing a search
+    SearchInput,        // typing a search
 }
 
 /// Bookmark list popup state
@@ -65,10 +65,10 @@ pub struct App {
     pub source_names: Vec<String>,
 
     // View state
-    pub scroll_offset: usize,    // first visible line (in filtered view)
-    pub auto_scroll: bool,       // tail -f mode
-    pub line_wrap: bool,         // word wrap toggle
-    pub viewport_height: usize,  // current terminal height for log area
+    pub scroll_offset: usize,   // first visible line (in filtered view)
+    pub auto_scroll: bool,      // tail -f mode
+    pub line_wrap: bool,        // word wrap toggle
+    pub viewport_height: usize, // current terminal height for log area
 
     // Filtering
     pub filters: Vec<Filter>,
@@ -206,7 +206,10 @@ impl App {
         self.rebuild_search_matches();
         // Jump to first match at or after current scroll
         if !self.search.match_indices.is_empty() {
-            let first = self.search.match_indices.iter()
+            let first = self
+                .search
+                .match_indices
+                .iter()
                 .position(|&i| i >= self.scroll_offset)
                 .unwrap_or(0);
             self.search.current_match = Some(first);
@@ -274,7 +277,9 @@ impl App {
         if self.filtered_indices.is_empty() {
             return;
         }
-        let fi = self.scroll_offset.min(self.filtered_indices.len().saturating_sub(1));
+        let fi = self
+            .scroll_offset
+            .min(self.filtered_indices.len().saturating_sub(1));
         let line_idx = self.filtered_indices[fi];
         if let Some(pos) = self.bookmarks.iter().position(|&b| b == line_idx) {
             self.bookmarks.remove(pos);
@@ -289,7 +294,9 @@ impl App {
         if self.filtered_indices.is_empty() {
             return None;
         }
-        let fi = self.scroll_offset.min(self.filtered_indices.len().saturating_sub(1));
+        let fi = self
+            .scroll_offset
+            .min(self.filtered_indices.len().saturating_sub(1));
         let li = self.filtered_indices[fi];
         self.lines.get(li).map(|l| l.content.as_str())
     }
@@ -313,7 +320,10 @@ impl App {
     pub fn scroll_to_bottom(&mut self) {
         self.auto_scroll = true;
         if !self.filtered_indices.is_empty() {
-            self.scroll_offset = self.filtered_indices.len().saturating_sub(self.viewport_height);
+            self.scroll_offset = self
+                .filtered_indices
+                .len()
+                .saturating_sub(self.viewport_height);
         }
     }
 
@@ -337,5 +347,134 @@ impl App {
     /// Total line count
     pub fn total_count(&self) -> usize {
         self.lines.len()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn app_with_lines(lines: &[&str]) -> App {
+        let mut app = App::new(1000, vec!["test".to_string()], false);
+        for l in lines {
+            app.add_line((*l).to_string(), 0);
+        }
+        app.refilter();
+        app
+    }
+
+    #[test]
+    fn ring_buffer_evicts_oldest() {
+        let mut app = App::new(3, vec!["t".to_string()], false);
+        for i in 0..5 {
+            app.add_line(format!("line {i}"), 0);
+        }
+        assert_eq!(app.total_count(), 3);
+        assert_eq!(app.lines.front().unwrap().content, "line 2");
+        assert_eq!(app.lines.back().unwrap().content, "line 4");
+    }
+
+    #[test]
+    fn filter_show_only_matching() {
+        let mut app = app_with_lines(&["alpha", "beta", "alpha-2", "gamma"]);
+        app.add_filter("alpha".to_string(), false).unwrap();
+        app.refilter();
+        assert_eq!(app.filtered_count(), 2);
+        assert_eq!(app.total_count(), 4);
+    }
+
+    #[test]
+    fn inverse_filter_hides_matching() {
+        let mut app = app_with_lines(&["keep", "drop-me", "keep2", "drop-me-too"]);
+        app.add_filter("drop".to_string(), true).unwrap();
+        app.refilter();
+        assert_eq!(app.filtered_count(), 2);
+    }
+
+    #[test]
+    fn pop_filter_restores_view() {
+        let mut app = app_with_lines(&["a", "b", "c"]);
+        app.add_filter("a".to_string(), false).unwrap();
+        app.refilter();
+        assert_eq!(app.filtered_count(), 1);
+        app.pop_filter();
+        app.refilter();
+        assert_eq!(app.filtered_count(), 3);
+    }
+
+    #[test]
+    fn invalid_filter_regex_is_rejected() {
+        let mut app = app_with_lines(&["x"]);
+        let err = app.add_filter("(unclosed".to_string(), false);
+        assert!(err.is_err());
+        assert!(app.filters.is_empty());
+    }
+
+    #[test]
+    fn incremental_add_keeps_filtered_indices_in_sync() {
+        let mut app = app_with_lines(&["match", "no"]);
+        app.add_filter("match".to_string(), false).unwrap();
+        app.refilter();
+        assert_eq!(app.filtered_count(), 1);
+        // A new matching line should appear without a full refilter.
+        app.add_line("match again".to_string(), 0);
+        assert_eq!(app.filtered_count(), 2);
+        // A non-matching line should not.
+        app.add_line("nope".to_string(), 0);
+        assert_eq!(app.filtered_count(), 2);
+    }
+
+    #[test]
+    fn search_collects_matches_and_navigates_cyclically() {
+        let mut app = app_with_lines(&["err one", "ok", "err two", "ok", "err three"]);
+        app.set_search("err").unwrap();
+        assert_eq!(app.search.match_indices, vec![0, 2, 4]);
+        // set_search jumps to the first match at/after scroll_offset (0).
+        assert_eq!(app.search.current_match, Some(0));
+        app.search_next();
+        assert_eq!(app.search.current_match, Some(1));
+        app.search_next();
+        assert_eq!(app.search.current_match, Some(2));
+        app.search_next(); // wraps
+        assert_eq!(app.search.current_match, Some(0));
+        app.search_prev(); // wraps backward
+        assert_eq!(app.search.current_match, Some(2));
+    }
+
+    #[test]
+    fn empty_search_clears_state() {
+        let mut app = app_with_lines(&["err"]);
+        app.set_search("err").unwrap();
+        assert!(!app.search.match_indices.is_empty());
+        app.set_search("").unwrap();
+        assert!(app.search.match_indices.is_empty());
+        assert!(app.search.regex.is_none());
+    }
+
+    #[test]
+    fn scroll_clamps_and_disables_auto_scroll() {
+        let mut app = app_with_lines(&["a", "b", "c"]);
+        app.scroll_down(100);
+        assert_eq!(app.scroll_offset, app.filtered_count() - 1);
+        app.scroll_up(100);
+        assert_eq!(app.scroll_offset, 0);
+        assert!(!app.auto_scroll);
+    }
+
+    #[test]
+    fn toggle_bookmark_adds_and_removes() {
+        let mut app = app_with_lines(&["a", "b", "c"]);
+        app.scroll_offset = 1;
+        app.toggle_bookmark();
+        assert_eq!(app.bookmarks, vec![1]);
+        app.toggle_bookmark();
+        assert!(app.bookmarks.is_empty());
+    }
+
+    #[test]
+    fn current_line_content_tracks_scroll() {
+        let mut app = app_with_lines(&["first", "second", "third"]);
+        app.scroll_offset = 2;
+        assert_eq!(app.current_line_content(), Some("third"));
     }
 }
